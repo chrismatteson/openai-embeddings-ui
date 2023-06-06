@@ -17,7 +17,7 @@ export const handleRequest: HandleRequest = async function (request: HttpRequest
   const { apiKey, action, websites, prompt } = JSON.parse(decoder.decode(request.body));
   console.log("2.2")
   let configuration = new Configuration({
-    apiKey: "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",
+    apiKey: apiKey,
   });
   console.log("3")
   switch (action) {
