@@ -1,0 +1,6 @@
+__pycache__
+*.wasm
+.spin
+*/dist
+*/node_modules
+package-lock.json
