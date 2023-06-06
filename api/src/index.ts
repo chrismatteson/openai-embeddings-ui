@@ -16,10 +16,9 @@ export const handleRequest: HandleRequest = async function (request: HttpRequest
   console.log("2.1")
   const { apiKey, action, websites, prompt } = JSON.parse(decoder.decode(request.body));
   console.log("2.2")
-  const configuration = new Configuration({
-    apiKey: apiKey,
+  let configuration = new Configuration({
+    apiKey: "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",
   });
-  const openai = new OpenAIApi(configuration);
   console.log("3")
   switch (action) {
     case "create_embedding":

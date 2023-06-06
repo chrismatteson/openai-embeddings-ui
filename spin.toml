@@ -16,7 +16,7 @@ route = "/..."
 id = "api"
 source = "api/target/api.wasm"
 key_value_stores = ["default"]
-allowed_http_hosts = [ "insecure:allow-all" ]
+allowed_http_hosts = ["https://api.openai.com"]
 [component.trigger]
 route = "/api"
 [component.build]
