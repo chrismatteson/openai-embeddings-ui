@@ -10,6 +10,10 @@ module.exports = {
                 use: 'ts-loader',
                 exclude: /node_modules/,
             },
+            {
+                test: /\.node$/,
+                loader: 'node-loader',
+              },
         ],
     },
     externalsType: 'global',
@@ -18,18 +22,18 @@ module.exports = {
         "fsPromises": "fsPromises",
         "glob": "glob",
         "crypto": "crypto",
+        "nodeExternals": "nodeExternals"
     },
     resolve: {
         extensions: ['.tsx', '.ts', '.js'],
         fallback: {
             // polyfills for nodejs modules
             "url": require.resolve("url/"),
-            "util": require.resolve("util/"),
-            "buffer": require.resolve("buffer/"),
-            "path": require.resolve("path-browserify"),
-            "stream": require.resolve("stream-browserify"),
-            "https": require.resolve("https-browserify"),
             "http": require.resolve("stream-http"),
+            "stream": require.resolve("stream-browserify"),
+            "path": require.resolve("path-browserify"),
+            "https": require.resolve("https-browserify"),
+            "util": require.resolve("util/"),
             // no polyfill for these
             "fs": false,
         },

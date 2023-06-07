@@ -1,67 +1,72 @@
 import { HandleRequest, HttpRequest, HttpResponse } from "@fermyon/spin-sdk";
-import { Configuration, CreateCompletionRequest, CreateEmbeddingRequest, OpenAIApi } from "openai";
+import { Configuration, OpenAIApi } from "openai";
+import fetch from 'node-fetch';
 const similarity = require('compute-cosine-similarity');
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const openai = new OpenAIApi();
+interface KeyValPair {
+  key: string;
+  value: number[];
+}
 
 export const handleRequest: HandleRequest = async function (request: HttpRequest): Promise<HttpResponse> {
-  console.log("1")
-  const store = spinSdk.kv.openDefault();
-  console.log("2")
-  let status = 200;
-  let body;
-  console.log("2.1")
-  const { apiKey, action, websites, prompt } = JSON.parse(decoder.decode(request.body));
-  console.log("2.2")
-  let configuration = new Configuration({
-    apiKey: apiKey,
-  });
-  console.log("3")
-  switch (action) {
-    case "create_embedding":
-      console.log("4")
-      for (const website of websites) {
-        console.log("5")
-        const embedding = await createEmbedding(website);
-        store.set(website, encoder.encode(JSON.stringify(embedding)).buffer);
-      }
-      body = "Embedding created successfully";
-      console.log("6")
-      break;
-    case "query":
-      console.log("7")
-      const response = await queryModel(prompt);
-      body = response;
-      break;
-    default:
-      break;
-  }
+  try {
+    const store = spinSdk.kv.openDefault();
+    let status = 200;
+    let body;
+    const { apiKey, action, websites, prompt } = JSON.parse(decoder.decode(request.body));
+    const configuration = new Configuration({
+      apiKey: apiKey,
+    });
 
-  return {
-    status: status,
-    body: body,
-  };
+    const openai = new OpenAIApi(configuration);
+    switch (action) {
+      case "create_embedding":
+        console.log("Creating Embeddings")
+        for (const website of websites) {
+          const content = await fetchWebsiteHTML(website)
+          const embedding = await createEmbedding(openai, content);
+          store.set(content, encoder.encode(JSON.stringify(embedding)).buffer);
+        }
+        body = "Embedding created successfully";
+        break;
+      case "query":
+        console.log("Sending query")
+        const response = await queryModel(openai, prompt);
+        body = response;
+        break;
+      default:
+        console.log("No action specified")
+        break;
+    }
+    return {
+      status: status,
+      body: body,
+    };
+  } catch (e) {
+    console.log(`Error: ${JSON.stringify(e, null, 2)}`);
+    return {
+      status: 500,
+      body: "Internal Server Error",
+    };
+  }
 };
 
-async function createEmbedding(text: string): Promise<number[]> {
-  console.log("8")
+async function createEmbedding(openai: OpenAIApi, text: string): Promise<number[]> {
   const response = await openai.createEmbedding({ input: [text], model: "text-embedding-ada-002" });
-  console.log("9")
   return response.data.data[0].embedding;
 }
 
-async function queryModel(prompt: string): Promise<string> {
-  console.log("10")
-  const promptEmbedding = await createEmbedding(prompt);
+async function queryModel(openai: OpenAIApi, prompt: string): Promise<string> {
+  const promptEmbedding = await createEmbedding(openai, prompt);
   const embeddings = await fetchAllEmbeddings();
   console.log("11")
   let promptWithEmbeddings = prompt;
   embeddings.forEach((embedding) => {
-    if (calculateCosineSimilarity(embedding, promptEmbedding) > 0.8) {
-      promptWithEmbeddings += "\n" + embedding.join(', ');
+    if (calculateCosineSimilarity(embedding.value, promptEmbedding) > 0.8) {
+      promptWithEmbeddings += "\n" + embedding.key;
     }
   });
   console.log("12")
@@ -78,18 +83,22 @@ async function queryModel(prompt: string): Promise<string> {
   }
 }
 
-async function fetchAllEmbeddings(): Promise<number[][]> {
+async function fetchAllEmbeddings(): Promise<KeyValPair[]> {
   const store = spinSdk.kv.openDefault();
-  console.log("15")
   const keys = await store.getKeys();
-  const embeddings: number[][] = [];
+  const keyValPairs: KeyValPair[] = [];
 
   for (const key of keys) {
-    const val = store.get(key);
-    embeddings.push(parseEmbedding(decoder.decode(val)));
+    const val = await store.get(key);
+    const decodedVal = decoder.decode(val);
+    const keyValPair: KeyValPair = {
+      key,
+      value: Array.from(decodedVal, (byte) => byte.charCodeAt(0))
+    };
+    keyValPairs.push(keyValPair);
   }
 
-  return embeddings;
+  return keyValPairs;
 }
 
 function calculateCosineSimilarity(embedding1: number[], embedding2: number[]): number {
@@ -99,4 +108,18 @@ function calculateCosineSimilarity(embedding1: number[], embedding2: number[]): 
 function parseEmbedding(embedding: string): number[] {
   // Parse the embedding string into an array of numbers
   return JSON.parse(embedding);
+}
+
+async function fetchWebsiteHTML(url: string): Promise<string> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch HTML from ${url}. Status: ${response.status}`);
+    }
+    const html = await response.text();
+    return html;
+  } catch (error) {
+    console.error(`Error fetching HTML from ${url}:`, error);
+    throw error;
+  }
 }
