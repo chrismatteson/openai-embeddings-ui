@@ -1,7 +1,7 @@
 import { HandleRequest, HttpRequest, HttpResponse } from "@fermyon/spin-sdk";
 import { Configuration, OpenAIApi } from "openai";
-import fetch from 'node-fetch';
-const similarity = require('compute-cosine-similarity');
+import * as htmlparser2 from "htmlparser2";
+const cosine = require('talisman/metrics/cosine');
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -26,9 +26,15 @@ export const handleRequest: HandleRequest = async function (request: HttpRequest
       case "create_embedding":
         console.log("Creating Embeddings")
         for (const website of websites) {
+          console.log("fetching " + website)
           const content = await fetchWebsiteHTML(website)
+          console.log("embedding " +  website)
           const embedding = await createEmbedding(openai, content);
-          store.set(content, encoder.encode(JSON.stringify(embedding)).buffer);
+          console.log("storing " + website + " embedding")
+          store.set(website, encoder.encode(JSON.stringify({
+            "content": content,
+            "embedding": embedding
+          })).buffer)
         }
         body = "Embedding created successfully";
         break;
@@ -60,26 +66,37 @@ async function createEmbedding(openai: OpenAIApi, text: string): Promise<number[
 }
 
 async function queryModel(openai: OpenAIApi, prompt: string): Promise<string> {
-  const promptEmbedding = await createEmbedding(openai, prompt);
-  const embeddings = await fetchAllEmbeddings();
-  console.log("11")
-  let promptWithEmbeddings = prompt;
-  embeddings.forEach((embedding) => {
-    if (calculateCosineSimilarity(embedding.value, promptEmbedding) > 0.8) {
-      promptWithEmbeddings += "\n" + embedding.key;
+  try {
+    const promptEmbedding = await createEmbedding(openai, prompt);
+    const embeddings = await fetchAllEmbeddings();
+    console.log("11")
+    let combinedEmbeddings = "Info:" + "\n";
+    console.log("12")
+    embeddings.forEach((embedding) => {
+      if (calculateCosineSimilarity(embedding.value, promptEmbedding) > 0.7) {
+        console.log(embedding.key)
+        combinedEmbeddings += "\n" + embedding.key;
+      }
+    });
+    console.log("12.1")
+    const completion = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {"role": "user", "content": combinedEmbeddings},
+        {"role": "user", "content": "Question: " + prompt}
+      ]
+    });
+    console.log("13")
+    if (completion.data.choices[0].message?.content) {
+      console.log("14")
+      console.log(completion.data.choices[0].message?.content)
+      return completion.data.choices[0].message?.content;
+    } else {
+      throw new Error("No data returned");
     }
-  });
-  console.log("12")
-  const completion = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: promptWithEmbeddings,
-  });
-  console.log("13")
-  if (completion.data.choices[0].text) {
-    console.log("14")
-    return completion.data.choices[0].text;
-  } else {
-    throw new Error("No data returned");
+  } catch (error) {
+    console.log(`Error querying openai: ${JSON.stringify(error, null, 2)}`);
+    throw error;
   }
 }
 
@@ -89,20 +106,28 @@ async function fetchAllEmbeddings(): Promise<KeyValPair[]> {
   const keyValPairs: KeyValPair[] = [];
 
   for (const key of keys) {
-    const val = await store.get(key);
-    const decodedVal = decoder.decode(val);
-    const keyValPair: KeyValPair = {
-      key,
-      value: Array.from(decodedVal, (byte) => byte.charCodeAt(0))
-    };
-    keyValPairs.push(keyValPair);
+    if (key.startsWith("http")) {
+      const val = await store.get(key);
+      const decodedVal = decoder.decode(val);
+      const parsedVal = JSON.parse(decodedVal);
+      const keyValPair: KeyValPair = {
+        key: parsedVal.content,
+        value: Array.from(parsedVal.embedding)
+      };
+      keyValPairs.push(keyValPair);
+    }
   }
 
   return keyValPairs;
 }
 
 function calculateCosineSimilarity(embedding1: number[], embedding2: number[]): number {
-  return similarity(embedding1, embedding2);
+  try {
+    return cosine(embedding1, embedding2);
+  } catch (error) {
+    console.error(`Error calculating cosine:`, error);
+    throw error;
+  }
 }
 
 function parseEmbedding(embedding: string): number[] {
@@ -116,8 +141,19 @@ async function fetchWebsiteHTML(url: string): Promise<string> {
     if (!response.ok) {
       throw new Error(`Failed to fetch HTML from ${url}. Status: ${response.status}`);
     }
-    const html = await response.text();
-    return html;
+    const responseBody = await response.text();
+    let textBody = "";
+    const parser = new htmlparser2.Parser({
+      ontext(text) {
+        if (/^\s*$/.test(text)) {
+        } else {
+          textBody += "\n" + text;
+        }
+      },
+    });
+    parser.write(responseBody)
+    parser.end();
+    return textBody;
   } catch (error) {
     console.error(`Error fetching HTML from ${url}:`, error);
     throw error;

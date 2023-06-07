@@ -26,13 +26,14 @@
     "browserify-url": "^0.0.1",
     "buffer": "^6.0.3",
     "bufferutil": "^4.0.7",
-    "compute-cosine-similarity": "^1.0.0",
+    "htmlparser2": "^9.0.0",
     "https-browserify": "^1.0.0",
-    "node-fetch": "^3.3.1",
     "openai": "github:radu-matei/openai-node#without-axios",
+    "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
+    "talisman": "^1.1.4",
     "url": "^0.11.0",
     "util": "^0.12.5"
   }
