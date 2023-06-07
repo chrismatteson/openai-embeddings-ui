@@ -29,12 +29,18 @@ export const handleRequest: HandleRequest = async function (request: HttpRequest
           console.log("fetching " + website)
           const content = await fetchWebsiteHTML(website)
           console.log("embedding " +  website)
-          const embedding = await createEmbedding(openai, content);
-          console.log("storing " + website + " embedding")
-          store.set(website, encoder.encode(JSON.stringify({
-            "content": content,
-            "embedding": embedding
-          })).buffer)
+          const contentArray = content.match(/[\s\S]{1,4096}/g);
+          if (contentArray) {
+            for (let i = 0; i < contentArray.length; i++) {
+              const embedding = await createEmbedding(openai, contentArray[i]);
+              const key = website + ":" + i; // Append the index to the key
+              console.log("storing " + key + " embedding");
+              store.set(key, encoder.encode(JSON.stringify({
+                "content": contentArray[i],
+                "embedding": embedding
+              })).buffer);
+            };
+          }
         }
         body = "Embedding created successfully";
         break;
@@ -69,16 +75,13 @@ async function queryModel(openai: OpenAIApi, prompt: string): Promise<string> {
   try {
     const promptEmbedding = await createEmbedding(openai, prompt);
     const embeddings = await fetchAllEmbeddings();
-    console.log("11")
     let combinedEmbeddings = "Info:" + "\n";
-    console.log("12")
     embeddings.forEach((embedding) => {
-      if (calculateCosineSimilarity(embedding.value, promptEmbedding) > 0.7) {
-        console.log(embedding.key)
+      if (calculateCosineSimilarity(embedding.value, promptEmbedding) > 0.8) {
+        console.log("greater than 0.8!")
         combinedEmbeddings += "\n" + embedding.key;
       }
     });
-    console.log("12.1")
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [
@@ -86,9 +89,7 @@ async function queryModel(openai: OpenAIApi, prompt: string): Promise<string> {
         {"role": "user", "content": "Question: " + prompt}
       ]
     });
-    console.log("13")
     if (completion.data.choices[0].message?.content) {
-      console.log("14")
       console.log(completion.data.choices[0].message?.content)
       return completion.data.choices[0].message?.content;
     } else {

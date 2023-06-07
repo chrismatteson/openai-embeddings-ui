@@ -88,7 +88,7 @@
 
       if (response.ok) {
         const responseBody = await response.text();
-        document.getElementById("response").textContent = responseBody;
+        document.getElementById("response").innerHTML = responseBody.replace(/\n/g, "<br>");
       } else {
         alert("Failed to query model");
       }
