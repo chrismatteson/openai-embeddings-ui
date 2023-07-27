@@ -1,6 +1,7 @@
-import { HandleRequest, HttpRequest, HttpResponse } from "@fermyon/spin-sdk";
+import { HandleRequest, HttpRequest, HttpResponse, Kv } from "@fermyon/spin-sdk";
 import { Configuration, OpenAIApi } from "openai";
 import * as htmlparser2 from "htmlparser2";
+import { arrayBuffer } from "stream/consumers";
 const cosine = require('talisman/metrics/cosine');
 
 const encoder = new TextEncoder();
@@ -13,7 +14,7 @@ interface KeyValPair {
 
 export const handleRequest: HandleRequest = async function (request: HttpRequest): Promise<HttpResponse> {
   try {
-    const store = spinSdk.kv.openDefault();
+    const store = Kv.openDefault();
     let status = 200;
     let body;
     const { apiKey, action, websites, prompt } = JSON.parse(decoder.decode(request.body));
@@ -102,14 +103,14 @@ async function queryModel(openai: OpenAIApi, prompt: string): Promise<string> {
 }
 
 async function fetchAllEmbeddings(): Promise<KeyValPair[]> {
-  const store = spinSdk.kv.openDefault();
+  const store = Kv.openDefault();
   const keys = await store.getKeys();
   const keyValPairs: KeyValPair[] = [];
 
   for (const key of keys) {
     if (key.startsWith("http")) {
       const val = await store.get(key);
-      const decodedVal = decoder.decode(val);
+      const decodedVal = decoder.decode(val || new Uint8Array());
       const parsedVal = JSON.parse(decodedVal);
       const keyValPair: KeyValPair = {
         key: parsedVal.content,
