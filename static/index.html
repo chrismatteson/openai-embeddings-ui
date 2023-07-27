@@ -1,99 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenAI Model UI</title>
-</head>
-
-<body>
-  <h1>OpenAI Model UI</h1>
-
-  <label for="apiKey">API Key:</label>
-  <input type="text" id="apiKey">
-
-  <br>
-
-  <label for="websites">Websites:</label>
-  <textarea id="websites" rows="5"></textarea>
-
-  <br>
-
-  <label for="prompt">Prompt:</label>
-  <input type="text" id="prompt">
-
-  <br>
-
-  <button onclick="createEmbedding()">Create Embedding</button>
-  <button onclick="queryModel()">Query</button>
-
-  <h2>Websites:</h2>
-  <ul id="websitesList"></ul>
-
-  <h2>Response:</h2>
-  <div id="response"></div>
-
-  <script>
-    async function createEmbedding() {
-      const apiKey = document.getElementById("apiKey").value;
-      const websites = document.getElementById("websites").value.split("\n");
-
-      const requestData = {
-        apiKey: apiKey,
-        action: "create_embedding",
-        websites: websites
-      };
-
-      const response = await fetch("/api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      if (response.ok) {
-        alert("Embedding created successfully");
-        const websitesList = document.getElementById("websitesList");
-        websitesList.innerHTML = "";
-
-        websites.forEach((website) => {
-          const li = document.createElement("li");
-          li.textContent = website;
-          websitesList.appendChild(li);
-        });
-      } else {
-        alert("Failed to create embedding");
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenAI Model UI</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        min-height: 100vh;
+        background: #0e092d;
       }
-    }
 
-    async function queryModel() {
-      const apiKey = document.getElementById("apiKey").value;
-      const prompt = document.getElementById("prompt").value;
-
-      const requestData = {
-        apiKey: apiKey,
-        action: "query",
-        prompt: prompt
-      };
-
-      const response = await fetch("/api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      if (response.ok) {
-        const responseBody = await response.text();
-        document.getElementById("response").innerHTML = responseBody.replace(/\n/g, "<br>");
-      } else {
-        alert("Failed to query model");
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
-    }
-  </script>
-</body>
+      h1, h2 {
+        color: #a87ce6;
+      }
+      label {
+        color: #e7d3f2;
+        margin-right: 0.5rem;
+        width: 100px;
+        text-align: right;
+      }
+      input,
+      textarea {
+        border-radius: 0.33rem;
+        padding: 0.5rem;
+        width: 200px;
+      }
+      .element-wrapper {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+      }
+      button {
+        outline: none;
+        border: none;
+        padding: 0.5rem;
+        border-radius: 0.33rem;
+        margin-right: 0.2rem;
+        width: 200px;
+        background: #C5FFF1;
+      }
+    </style>
+  </head>
 
+  <body>
+    <h1>OpenAI Model UI</h1>
+    <div class="element-wrapper">
+      <label for="apiKey">API Key:</label>
+      <input type="password" id="apiKey" />
+    </div>
+
+    <div class="element-wrapper">
+      <label for="websites">Websites:</label>
+      <textarea id="websites" rows="5"></textarea>
+    </div>
+
+    <div class="element-wrapper">
+      <label for="prompt">Prompt:</label>
+      <input type="text" id="prompt" />
+    </div>
+
+    <div class="element-wrapper">
+      <button onclick="createEmbedding()">Create Embedding</button>
+      <button onclick="queryModel()">Query</button>
+    </div>
+
+    <h2>Websites:</h2>
+    <ul id="websitesList"></ul>
+
+    <h2>Response:</h2>
+    <div id="response"></div>
+
+    <script>
+      async function createEmbedding() {
+        const apiKey = document.getElementById("apiKey").value
+        const websites = document.getElementById("websites").value.split("\n")
+
+        const requestData = {
+          apiKey: apiKey,
+          action: "create_embedding",
+          websites: websites,
+        }
+
+        const response = await fetch("/api", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        })
+
+        if (response.ok) {
+          alert("Embedding created successfully")
+          const websitesList = document.getElementById("websitesList")
+          websitesList.innerHTML = ""
+
+          websites.forEach((website) => {
+            const li = document.createElement("li")
+            li.textContent = website
+            websitesList.appendChild(li)
+          })
+        } else {
+          alert("Failed to create embedding")
+        }
+      }
+
+      async function queryModel() {
+        const apiKey = document.getElementById("apiKey").value
+        const prompt = document.getElementById("prompt").value
+
+        const requestData = {
+          apiKey: apiKey,
+          action: "query",
+          prompt: prompt,
+        }
+
+        const response = await fetch("/api", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        })
+
+        if (response.ok) {
+          const responseBody = await response.text()
+          document.getElementById("response").innerHTML = responseBody.replace(
+            /\n/g,
+            "<br>"
+          )
+        } else {
+          alert("Failed to query model")
+        }
+      }
+    </script>
+  </body>
 </html>
